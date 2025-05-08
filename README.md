@@ -1,48 +1,11 @@
 # Agent Voice Response - OpenAI Speech-to-Speech Integration
 
 [![Discord](https://img.shields.io/discord/1347239846632226998?label=Discord&logo=discord)](https://discord.gg/DFTU69Hg74)
-[![GitHub Repo stars](https://img.shields.io/github/stars/agentvoiceresponse/avr-sts-openai?style=social)](https://github.com/agentvoiceresponse/avr-sts-openai)
-[![Docker Pulls](https://img.shields.io/docker/pulls/agentvoiceresponse/avr-sts-openai?label=Docker%20Pulls&logo=docker)](https://hub.docker.com/r/agentvoiceresponse/avr-sts-openai)
-[![Ko-fi](https://img.shields.io/badge/Support%20us%20on-Ko--fi-ff5e5b.svg)](https://ko-fi.com/agentvoiceresponse)
+[![GitHub Repo stars](https://img.shields.io/github/stars/agentvoiceresponse/avr-llm-openai?style=social)](https://github.com/agentvoiceresponse/avr-llm-openai)
+[![Docker Pulls](https://img.shields.io/docker/pulls/agentvoiceresponse/avr-llm-openai?label=Docker%20Pulls&logo=docker)](https://hub.docker.com/r/agentvoiceresponse/avr-llm-openai)
+[![Ko-fi](https://img.shields.io/badge/Support%20us%20on-Ko--fi-ff5e5b.svg)](https://ko-fi.com/gcareri)
 
-This repository is part of the **Agent Voice Response (AVR)** ecosystem, providing a direct integration with OpenAI's Real-time Speech-to-Speech API. This integration allows AVR to handle voice interactions with OpenAI's advanced language models, enabling natural conversations between users and AI agents.
-
-## Table of Contents
-- [Overview](#overview)
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [Integration with AVR](#integration-with-avr)
-- [Troubleshooting](#troubleshooting)
-- [Community](#community)
-- [Support](#support)
-- [License](#license)
-
-## Overview
-
-This integration provides a direct speech-to-speech communication channel with OpenAI's real-time API, eliminating the need for separate ASR and TTS services. The service handles:
-
-1. **Audio Processing**: Converts between 8kHz and 24kHz audio formats
-2. **Real-time Streaming**: Manages WebSocket communication with OpenAI
-3. **Audio Format Conversion**: Handles necessary audio format transformations
-
-### Integration Flow
-
-<div align="center">
-  <img src="https://github.com/agentvoiceresponse/.github/blob/main/profile/images/avr-architecture.png" alt="AVR Architecture" width="600">
-  <br>
-  <em>AVR Architecture with OpenAI Speech-to-Speech Integration</em>
-</div>
-
-## Features
-
-- **Direct Speech-to-Speech**: Eliminates the need for separate ASR and TTS services
-- **Real-time Processing**: Handles audio streaming with minimal latency
-- **Audio Format Conversion**: Automatic conversion between 8kHz and 24kHz formats
-- **WebSocket Communication**: Efficient real-time communication with OpenAI's API
-- **Error Handling**: Robust error handling and recovery mechanisms
+This repository showcases the integration between **Agent Voice Response** and **OpenAI's Real-time Speech-to-Speech API**. The application leverages OpenAI's powerful language model to process audio input from users, providing intelligent, context-aware responses in real-time audio format.
 
 ## Prerequisites
 
@@ -51,9 +14,8 @@ To set up and run this project, you will need:
 1. **Node.js** and **npm** installed
 2. An **OpenAI API key** with access to the real-time API
 3. **WebSocket** support in your environment
-4. **Docker** (optional, for containerized deployment)
 
-## Installation
+## Setup
 
 ### 1. Clone the Repository
 
@@ -70,7 +32,7 @@ npm install
 
 ### 3. Configure Environment Variables
 
-Create a `.env` file in the root of the project with the following variables:
+Create a `.env` file in the root of the project to store your API keys and configuration. You will need to add the following variables:
 
 ```bash
 OPENAI_API_KEY=your_openai_api_key
@@ -78,12 +40,14 @@ PORT=6030
 OPENAI_MODEL=gpt-4o-realtime-preview  # Optional, defaults to gpt-4o-realtime-preview
 OPENAI_INSTRUCTIONS="You are a helpful assistant that can answer questions and help with tasks."  # Optional
 OPENAI_TEMPERATURE=0.8  # Optional, controls randomness (0.0-1.0), defaults to 0.8
-OPENAI_MAX_TOKENS=100  # Optional, controls response length, defaults to 100
+OPENAI_MAX_TOKENS=100  # Optional, controls response length, defaults to "inf"
 ```
+
+Replace `your_openai_api_key` with your actual OpenAI API key.
 
 ### 4. Running the Application
 
-Start the application:
+Start the application by running the following command:
 
 ```bash
 node index.js
@@ -91,19 +55,28 @@ node index.js
 
 The server will start on the port defined in the environment variable (default: 6030).
 
-## Integration with AVR
+## How It Works
 
-To integrate this service with AVR Core:
+The **Agent Voice Response** system integrates with OpenAI's Real-time Speech-to-Speech API to provide intelligent audio-based responses to user queries. The server receives audio input from users, forwards it to OpenAI's API, and then returns the model's response as audio in real-time using WebSocket communication.
 
-1. **Configure AVR Core**:
-   - Set the `LLM_URL` environment variable in AVR Core to point to this service:
-     ```bash
-     LLM_URL=http://localhost:6030/speech-to-speech-stream
-     ```
+### Key Components
 
-2. **Audio Format**:
-   - Ensure your Asterisk configuration is set to use 8kHz audio
-   - The service will automatically handle the conversion to 24kHz for OpenAI
+- **Express.js Server**: Handles incoming audio streams from clients
+- **WebSocket Communication**: Manages real-time communication with OpenAI's API
+- **Audio Processing**: Handles audio format conversion between 8kHz and 24kHz
+- **Real-time Streaming**: Processes and streams audio data in real-time
+
+### Audio Processing
+
+The application includes two main audio processing functions:
+
+1. **Upsampling (8kHz to 24kHz)**:
+   - Converts client audio from 8kHz to 24kHz using linear interpolation
+   - Required for OpenAI's API which expects 24kHz input
+
+2. **Downsampling (24kHz to 8kHz)**:
+   - Converts OpenAI's 24kHz output back to 8kHz
+   - Ensures compatibility with client audio systems
 
 ## API Endpoints
 
@@ -121,38 +94,41 @@ This endpoint accepts an audio stream and returns a streamed audio response gene
 - Format: 16-bit PCM at 8kHz
 - Streamed audio data in real-time
 
-## Troubleshooting
+## Customizing the Application
 
-Common issues and solutions:
+### Environment Variables
 
-1. **WebSocket Connection Issues**:
-   - Verify OpenAI API key is valid
-   - Check network connectivity
-   - Ensure WebSocket support is enabled
+You can customize the application behavior using the following environment variables:
 
-2. **Audio Quality Issues**:
-   - Verify input audio is 8kHz
-   - Check audio format compatibility
-   - Monitor system resources
+- `OPENAI_API_KEY`: Your OpenAI API key (required)
+- `PORT`: The port on which the server will listen (default: 6030)
+- `OPENAI_MODEL`: The OpenAI model to use (default: gpt-4o-realtime-preview)
+- `OPENAI_INSTRUCTIONS`: Custom instructions for the AI (optional)
+- `OPENAI_TEMPERATURE`: Controls randomness in responses (0.0-1.0, default: 0.8)
+- `OPENAI_MAX_TOKENS`: Controls the maximum length of the response (default: "inf")
 
-3. **Performance Issues**:
-   - Check OpenAI API rate limits
-   - Monitor system resources
-   - Verify network latency
+## Error Handling
 
-## Community
+The application includes comprehensive error handling for:
+- WebSocket connection issues
+- Audio processing errors
+- OpenAI API errors
+- Stream processing errors
 
-Join our growing community:
+All errors are logged to the console and appropriate error messages are returned to the client.
 
-- [Discord Server](https://discord.gg/DFTU69Hg74) - Connect with other AVR users
-- [GitHub Discussions](https://github.com/agentvoiceresponse/avr-sts-openai/discussions) - Share ideas and get help
-- [Documentation](https://wiki.agentvoiceresponse.com) - Detailed guides and tutorials
+## Support & Community
 
-## Support
+*   **GitHub:** [https://github.com/agentvoiceresponse](https://github.com/agentvoiceresponse) - Report issues, contribute code.
+*   **Discord:** [https://discord.gg/DFTU69Hg74](https://discord.gg/DFTU69Hg74) - Join the community discussion.
+*   **Docker Hub:** [https://hub.docker.com/u/agentvoiceresponse](https://hub.docker.com/u/agentvoiceresponse) - Find Docker images.
+*   **Wiki:** [https://wiki.agentvoiceresponse.com/en/home](https://wiki.agentvoiceresponse.com/en/home) - Project documentation and guides.
+
+## Support AVR
 
 AVR is free and open-source. If you find it valuable, consider supporting its development:
 
-<a href="https://ko-fi.com/agentvoiceresponse" target="_blank"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support us on Ko-fi"></a>
+<a href="https://ko-fi.com/gcareri" target="_blank"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support us on Ko-fi"></a>
 
 ## License
 
