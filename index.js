@@ -19,7 +19,6 @@ const app = express();
 
 let resampler = new AudioResampler(24000);
 
-
 /**
  * Creates and configures a WebSocket connection to OpenAI's real-time API.
  *
@@ -48,6 +47,15 @@ const connectToOpenAI = () => {
  */
 const handleAudioStream = async (req, res) => {
   res.setHeader("Content-Type", "application/octet-stream");
+  
+  let buffer = Buffer.alloc(0);
+  const interval = setInterval(() => {
+    if (buffer.length >= 320) {
+      const chunk = buffer.slice(0, 320);
+      res.write(chunk);
+      buffer = buffer.slice(320);
+    }
+  }, 20);
 
   const openaiWebSocket = connectToOpenAI();
 
@@ -85,20 +93,14 @@ const handleAudioStream = async (req, res) => {
           break;
 
         case "response.audio.delta":
+          // Clear buffer and start fresh when receiving audio response
           const decoded = Buffer.from(message.delta, "base64");
-          console.log(`OpenAI audio (24kHz PCM):`, decoded.length, "bytes");
-          const downsampled = await resampler.handleDownsampleChunk(decoded);
-          for (const chunk of downsampled) {
-            res.write(chunk);
-          }
+          const downsampled = resampler.downsample(decoded);
+          buffer = Buffer.concat([buffer, downsampled]);
           break;
 
         case "response.audio.done":
           console.log("Audio streaming completed");
-          const remainingChunks = await resampler.flushDownsampleRemainder();
-          for (const chunk of remainingChunks) {
-            res.write(chunk);
-          }
           break;
 
         case "response.audio_transcript.delta":
@@ -111,10 +113,11 @@ const handleAudioStream = async (req, res) => {
 
         case "input_audio_buffer.speech_started":
           console.log("Speech started");
+          buffer = Buffer.alloc(0);
           break;
 
         case "rate_limits.updated":
-          console.log("Rate limits updated:", message.rate_limits);
+          console.log("Rate limits updated");
           break;
 
         default:
@@ -126,37 +129,41 @@ const handleAudioStream = async (req, res) => {
     }
   });
 
-  openaiWebSocket.on("close", () => {
+  openaiWebSocket.on("close", async () => {
     console.log("WebSocket connection closed");
+    clearInterval(interval);
+    resampler.destroy();
     res.end();
   });
 
-  openaiWebSocket.on("error", (err) => {
+  openaiWebSocket.on("error", async (err) => {
     console.error("WebSocket error:", err);
+    clearInterval(interval);
     res.end();
   });
 
   // Handle incoming audio data
   req.on("data", async (chunk) => {
     if (openaiWebSocket.readyState === openaiWebSocket.OPEN) {
-      const convertedAudio = await resampler.handleUpsampleChunk(chunk);            
+      const convertedAudio = resampler.upsample(chunk);
       openaiWebSocket.send(
         JSON.stringify({
           type: "input_audio_buffer.append",
           audio: convertedAudio.toString("base64"),
         })
       );
-     
     }
   });
 
-  req.on("end", () => {
+  req.on("end", async () => {
     console.log("Request stream ended");
+    clearInterval(interval);
     openaiWebSocket.close();
   });
 
-  req.on("error", (err) => {
+  req.on("error", async (err) => {
     console.error("Request error:", err);
+    clearInterval(interval);
     openaiWebSocket.close();
   });
 };
