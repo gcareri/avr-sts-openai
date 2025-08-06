@@ -16,7 +16,7 @@ require("dotenv").config();
 
 // Initialize Express application
 const app = express();
-
+// Initialize Audio resampler for 24KHz to 8KHz conversion
 let resampler = new AudioResampler(24000);
 
 /**
@@ -48,14 +48,14 @@ const connectToOpenAI = () => {
 const handleAudioStream = async (req, res) => {
   res.setHeader("Content-Type", "application/octet-stream");
   
-  let buffer = Buffer.alloc(0);
+  let buffer = [];
+
   const interval = setInterval(() => {
-    if (buffer.length >= 320) {
-      const chunk = buffer.slice(0, 320);
+    if (buffer.length > 0) {
+      const chunk = buffer.shift();
       res.write(chunk);
-      buffer = buffer.slice(320);
     }
-  }, 20);
+  }, 15);
 
   const openaiWebSocket = connectToOpenAI();
 
@@ -96,7 +96,10 @@ const handleAudioStream = async (req, res) => {
           // Clear buffer and start fresh when receiving audio response
           const decoded = Buffer.from(message.delta, "base64");
           const downsampled = resampler.downsample(decoded);
-          buffer = Buffer.concat([buffer, downsampled]);
+          for (let i = 0; i < downsampled.length; i += 320) {
+            const chunk = downsampled.slice(i, i + 320);
+            buffer.push(chunk);
+          }
           break;
 
         case "response.audio.done":
@@ -112,8 +115,8 @@ const handleAudioStream = async (req, res) => {
           break;
 
         case "input_audio_buffer.speech_started":
-          console.log("Speech started");
-          buffer = Buffer.alloc(0);
+          console.log("Speech started – stopping output stream");
+          buffer = [];
           break;
 
         case "rate_limits.updated":
@@ -132,7 +135,6 @@ const handleAudioStream = async (req, res) => {
   openaiWebSocket.on("close", async () => {
     console.log("WebSocket connection closed");
     clearInterval(interval);
-    resampler.destroy();
     res.end();
   });
 
