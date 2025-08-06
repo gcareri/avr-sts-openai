@@ -301,7 +301,7 @@ const initializeResamplers = async () => {
 // Start server
 app.listen(PORT, async () => {
   console.log(`OpenAI Speech-to-Speech server running on port ${PORT}`);
-  
+  console.log("WebAssembly support:", typeof WebAssembly !== 'undefined');
   // Initialize resamplers after server starts
   await initializeResamplers();
 });
