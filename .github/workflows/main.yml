@@ -20,7 +20,7 @@ jobs:
           uses: martinbeentjes/npm-get-version-action@v1.3.1
         - name: build the docker image
           id: build-docker-image
-          run: docker build -t agentvoiceresponse/avr-sts-openai:latest -t agentvoiceresponse/avr-sts-openai:${{ steps.package-version.outputs.current-version}} .
+          run: docker build -t gcareri/avr-sts-openai-instructions:latest -t gcareri/avr-sts-openai-instructions:${{ steps.package-version.outputs.current-version}} .
         - name: push the docker image
           id: push-docker-image
-          run: docker push agentvoiceresponse/avr-sts-openai:latest && docker push agentvoiceresponse/avr-sts-openai:${{ steps.package-version.outputs.current-version}}
+          run: docker push gcareri/avr-sts-openai-instructions:latest && docker push gcareri/avr-sts-openai-instructions:${{ steps.package-version.outputs.current-version}}
